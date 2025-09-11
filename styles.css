@@ -87,8 +87,7 @@ body {
   .nav {
     position: absolute;
     top: 100%;
-    left: 0;
-    right: 0;
+  
     /* GUIDE 3: Style this nav as a dropdown panel
      - Add background color
      - Add border or separator
