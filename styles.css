@@ -79,9 +79,9 @@ body {
 
 @media (max-width: 720px) {
 
-  /* TODO 1: hide the horizontal nav by default on small screens */
+  /* GUIDE 1: hide the horizontal nav by default on small screens */
 
-  /* TODO 2: show the hamburger on small screens */
+  /* GUIDE 2: show the hamburger on small screens */
 
   /* make nav a dropdown panel */
   .nav {
@@ -89,20 +89,20 @@ body {
     top: 100%;
     left: 0;
     right: 0;
-    /* TODO 3: Style this nav as a dropdown panel
+    /* GUIDE 3: Style this nav as a dropdown panel
      - Add background color
      - Add border or separator
      - Add shadow to make it float */
   }
   /* stack links vertically */
   .nav a {
-    /* TODO 4: Make each link fill the full width (stack vertically) */
-    /* TODO 5: Give padding e.g., 12px 16px */
+    /* GUIDE 4: Make each link fill the full width (stack vertically) */
+    /* GUIDE 5: Give padding e.g., 12px 16px */
     border-top: 1px solid #f4f4f4;
     border-radius: 0;
   }
 
-   /* TODO 6: reveal nav when toggled */
+   /* GUIDE 6: reveal nav when toggled */
 }
 /* (Optional) X animation */
 /* #menu-toggle:checked + .hamburger span:nth-child(1) { transform: translateY(8px) rotate(45deg); }
