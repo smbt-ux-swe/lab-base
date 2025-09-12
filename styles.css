@@ -82,13 +82,12 @@ body {
 
   /* GUIDE 2: show the hamburger on small screens */
 
-  /* GUIDE 3: reveal nav when toggled (use + combinator) */
+  /* GUIDE 3: reveal nav when toggled (use ~ combinator) */
 
   /* GUIDE 4: style nav as vertical panel */
   /* 4-1) How the link inside of nav should be displayed? */  
 
   /* 4-2) Where the nav should be positioned? */
-
    
 }
 /* (Optional) X animation */
