@@ -1,0 +1,138 @@
+/* Reset */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* Visually hidden utility (for accessible headings/captions) */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0,0,1px,1px) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Layout */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f0f2f5;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+/* Container → analytics (BEM block) */
+.analytics {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  padding: 40px;
+  max-width: 800px;
+  width: 100%;
+}
+
+/* Header area */
+.analytics__title {
+  color: #333;
+  margin-bottom: 10px;
+  font-size: 2rem;
+  text-align: center;
+}
+
+.analytics__subtitle {
+  color: #666;
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 1.1rem;
+}
+
+/* Dataset panel */
+.analytics__dataset {
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.analytics__heading {
+  color: #495057;
+  margin-bottom: 15px;
+  font-size: 1.2rem;
+}
+
+/* Code block */
+.analytics__pre {
+  background: #282c34;
+  color: #61dafb;
+  padding: 15px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* Controls grid */
+.analytics__controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+/* Buttons */
+.analytics__button {
+  background: #655b5b;
+  color: #fff;
+  border: none;
+  padding: 15px 25px;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.analytics__button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+}
+
+.analytics__button:active {
+  transform: translateY(0);
+}
+
+/* Danger modifier (Reset button) */
+.analytics__button--danger {
+  background: #dc3545;
+}
+
+/* Output area */
+.analytics__output {
+  background: #282c34;
+  color: #61dafb;
+  padding: 20px;
+  border-radius: 10px;
+  min-height: 150px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* Placeholder text when empty */
+.analytics__output:empty::before {
+  content: "Click buttons to see results here...";
+  color: #6c757d;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .analytics { padding: 20px; }
+  .analytics__title { font-size: 1.5rem; }
+  .analytics__controls { grid-template-columns: 1fr; }
+}
