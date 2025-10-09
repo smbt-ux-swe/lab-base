@@ -1,0 +1,272 @@
+/* ===================================
+   CSS VARIABLES (Light Mode Default)
+   =================================== */
+   :root {
+    /* Light Mode Colors */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f5;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --accent: #4a90e2;
+    --accent-hover: #357abd;
+    --border-color: #e0e0e0;
+    --card-bg: #ffffff;
+    --shadow: rgba(0, 0, 0, 0.1);
+}
+
+/* Dark Mode Colors  */
+.dark-mode {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --text-primary: #f0f0f0;
+    --text-secondary: #b0b0b0;
+    --accent: #64b5f6;
+    --accent-hover: #42a5f5;
+    --border-color: #404040;
+    --card-bg: #252525;
+    --shadow: rgba(0, 0, 0, 0.3);
+}
+
+/* ===================================
+   RESET & BASE STYLES
+   =================================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ===================================
+   HEADER STYLES
+   =================================== */
+.header {
+    background-color: var(--bg-secondary);
+    border-bottom: 2px solid var(--border-color);
+    padding: 1rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    transition: all 0.3s ease;
+}
+
+.header__container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header__logo {
+    font-size: 1.5rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Theme Toggle Button */
+.theme-toggle {
+    background-color: var(--accent);
+    border: none;
+    border-radius: 50px;
+    padding: 0.5rem 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.theme-toggle:hover {
+    background-color: var(--accent-hover);
+    transform: scale(1.05);
+}
+
+.theme-toggle__icon {
+    font-size: 1.2rem;
+}
+
+/* ===================================
+   MAIN CONTENT
+   =================================== */
+.main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+/* About Section */
+.about {
+    padding: 3rem 0;
+    background-color: var(--bg-secondary);
+    border-radius: 12px;
+    margin: 2rem 0;
+    transition: background-color 0.3s ease;
+}
+
+.about__container {
+    padding: 2rem;
+}
+
+.about__title {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.about__text {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    line-height: 1.8;
+}
+
+/* Projects Section */
+.projects {
+    padding: 3rem 0;
+}
+
+.projects__container {
+    padding: 2rem 0;
+}
+
+.projects__title {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+    text-align: center;
+    color: var(--text-primary);
+}
+
+.projects__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+/* Project Card */
+.project-card {
+    background-color: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.project-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px var(--shadow);
+}
+
+.project-card__header {
+    margin-bottom: 1rem;
+}
+
+.project-card__title {
+    font-size: 1.4rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.project-card__description {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    line-height: 1.6;
+}
+
+.project-card__tags {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.tag {
+    background-color: var(--accent);
+    color: white;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+}
+
+/* Contact Section */
+.contact {
+    padding: 3rem 0;
+    text-align: center;
+    background-color: var(--bg-secondary);
+    border-radius: 12px;
+    margin: 2rem 0;
+    transition: background-color 0.3s ease;
+}
+
+.contact__container {
+    padding: 2rem;
+}
+
+.contact__title {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.contact__text {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+}
+
+.contact__button {
+    display: inline-block;
+    background-color: var(--accent);
+    color: white;
+    padding: 1rem 2rem;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.contact__button:hover {
+    background-color: var(--accent-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow);
+}
+
+/* Footer */
+.footer {
+    background-color: var(--bg-secondary);
+    border-top: 2px solid var(--border-color);
+    padding: 2rem 0;
+    text-align: center;
+    margin-top: 3rem;
+    transition: all 0.3s ease;
+}
+
+.footer__text {
+    color: var(--text-secondary);
+}
+
+/* ===================================
+   RESPONSIVE DESIGN
+   =================================== */
+@media (max-width: 768px) {
+    .hero__title {
+        font-size: 2rem;
+    }
+
+    .projects__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .header__container {
+        padding: 0 1rem;
+    }
+
+    .main {
+        padding: 0 1rem;
+    }
+}
