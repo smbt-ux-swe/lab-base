@@ -1,16 +1,62 @@
-# React + Vite
+# Lab 5 — Button Component
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+In this lab, you will **build your own reusable Button component** in React.
 
-Currently, two official plugins are available:
+You are given:
+- A project scaffold (React + Vite)
+- `Button.css` that already contains all the styles
+- `App.jsx` to check your implementation
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Your job is to **implement the logic inside `Button.jsx`**  
+and then **uncomment lines in `App.jsx`** to test your button.
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## **Goal**
 
-## Expanding the ESLint configuration
+Build a reusable `<Button>` component that:
+- Can display text and an optional icon
+- Supports multiple visual styles (`variant`, `size`, `color`)
+- Disables interaction when needed
+- Applies the correct CSS classes dynamically based on props
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+---
+
+## **Files to Edit**
+
+### `src/components/Button.jsx`
+
+You will implement the `Button` component here.
+
+```jsx
+/**
+ * Lab 5
+ *
+ * Props:
+ * - children (ReactNode): Button label or content (required)
+ * - variant ("fill" | "outline" | "text"): Visual style of the button
+ * - size ("small" | "medium" | "large"): Button size
+ * - color ("primary" | "secondary"): Theme color
+ * - disabled (boolean): Whether the button is disabled
+ * - icon (ReactNode): Optional icon displayed before the text
+ * - onClick (function): Click event handler
+ *
+ * Requirements:
+ * 1. Render a <button> that:
+ *    - Shows the icon (if provided) before the text.
+ *    - Renders the children inside.
+ * 2. Apply multiple CSS classes dynamically:
+ *    "button", `variant-[fill|outline|text]`,
+ *    `size-[small|medium|large]`, `color-[primary|secondary]`
+ *    and add "disabled" when disabled.
+ * 3. Use `disabled={disabled}` to make it unclickable.
+ *
+ * Tip:
+ * const classes = [
+ *   "button",
+ *   `variant-${variant}`,
+ *   `size-${size}`,
+ *   `color-${color}`,
+ *   disabled ? "disabled" : ""
+ * ].filter(Boolean).join(" ");
+ */
