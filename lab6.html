@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading Animation Showcase</title>
+    <link rel="stylesheet" href="lab6.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Lab 6: CSS Animation & Transitions</h1>
+        
+        <!-- Spinner Loader -->
+        <div class="loader-section">
+            <h2>1. Spinner Loader</h2>
+            <div class="loader-container">
+                <div class="spinner" id="spinner"></div>
+            </div>
+            <div class="controls">
+                <button class="load-btn" data-loader="spinner">Load</button>
+                <button class="stop-btn" data-loader="spinner">Stop</button>
+            </div>
+        </div>
+
+        <!-- Progress Bar Loader -->
+        <div class="loader-section">
+            <h2>2. Progress Bar Loader</h2>
+            <div class="loader-container">
+                <div class="progress-wrapper">
+                    <div class="progress-bar" id="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <span class="progress-text" id="progress-text">0%</span>
+                </div>
+            </div>
+            <div class="controls">
+                <button class="load-btn" data-loader="progress">Load</button>
+                <button class="stop-btn" data-loader="progress">Stop</button>
+            </div>
+        </div>
+
+        <!-- Dots Loader -->
+        <div class="loader-section">
+            <h2>3. Dots Loader</h2>
+            <div class="loader-container">
+                <div class="dots-loader" id="dots-loader">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+            </div>
+            <div class="controls">
+                <button class="load-btn" data-loader="dots">Load</button>
+                <button class="stop-btn" data-loader="dots">Stop</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="lab6.js"></script>
+</body>
+</html>
