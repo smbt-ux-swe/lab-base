@@ -1,0 +1,7 @@
+import ProductDashboard from "./ProductDashboard";
+
+function App() {
+  return <ProductDashboard />;
+}
+
+export default App;
