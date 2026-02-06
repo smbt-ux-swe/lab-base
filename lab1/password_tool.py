@@ -1,5 +1,5 @@
 """
-Password Security Tool - INFO 153B/253B Week 2
+Password Security Tool - INFO 153B/253B Lab 1
 
 Analyze password strength and generate secure passwords.
 
