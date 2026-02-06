@@ -22,8 +22,7 @@ Implement `check_password_strength(password)` that analyzes a password and retur
 {
     "password": "Hello123!",
     "score": 90,
-    "strength": "Strong",  # "Weak" (0-39), "Medium" (40-69), "Strong" (70-100)
-    "feedback": ["✓ Good length", "✓ Has numbers", ...]
+    "strength": "Strong"  # "Weak" (0-39), "Medium" (40-69), "Strong" (70-100)
 }
 ```
 
