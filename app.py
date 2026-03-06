@@ -1,188 +1,171 @@
-#!/usr/bin/env python3
 """
-Lab 2: External API Integration — Student Records + AI Advice
+app.py — Flask REST API for Stores and Items
 
-CRUD endpoints (below) are COMPLETE. Do NOT modify them.
-Your task: implement the two advice endpoints marked with TODO.
+ALREADY PROVIDED:
+  - App setup, blueprints, in-memory storage
+  - GET and POST routes that work
+  - Helper functions for validation
+
+YOUR TASKS (TODO 1 and TODO 4):
+  Look for TODO comments in the post() method below.
+  These validations belong in the route handler because
+  they depend on application state (the data in memory),
+  not just the shape of the request.
+
+WHY SOME VALIDATION IS HERE vs IN SCHEMAS:
+  - schemas.py handles data shape: types, ranges, field relationships
+  - app.py handles application logic: "does this store exist?", "is this name taken?"
+  This is how real APIs separate concerns.
 """
 
-import os
-from flask import Flask, request, jsonify
-from dotenv import load_dotenv
-from openai import OpenAI
-
-load_dotenv()  # loads variables from .env file
+from flask import Flask
+from flask_smorest import Api, Blueprint, abort
+from flask.views import MethodView
+from schemas import ItemSchema, ItemCreateSchema, StoreSchema
 
 app = Flask(__name__)
 
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+app.config["API_TITLE"] = "Advanced Validation API"
+app.config["API_VERSION"] = "v1"
+app.config["OPENAPI_VERSION"] = "3.0.3"
+app.config["OPENAPI_URL_PREFIX"] = "/"
+app.config["OPENAPI_SWAGGER_UI_PATH"] = "/swagger-ui"
+app.config["OPENAPI_SWAGGER_UI_URL"] = "https://cdn.jsdelivr.net/npm/swagger-ui-dist/"
 
-# =============================================================================
-# DATA STORAGE
-# =============================================================================
-
-students = {
-    1: {"id": 1, "name": "Alice Smith", "email": "alice@berkeley.edu", "major": "Data Science"},
-    2: {"id": 2, "name": "Bob Jones", "email": "bob@berkeley.edu", "major": "Computer Science"},
-    3: {"id": 3, "name": "Carol White", "email": "carol@berkeley.edu", "major": "Information Systems"},
-    4: {"id": 4, "name": "David Park", "email": "david@berkeley.edu", "major": ""},
-}
-
-next_id = 5
+api = Api(app)
 
 
-# =============================================================================
-# CRUD ENDPOINTS — ALREADY COMPLETE (do NOT modify)
-# =============================================================================
+# ============================================================
+# In-Memory Storage
+# ============================================================
 
-@app.get('/students')
-def list_students():
-    all_students = list(students.values())
-    return jsonify({"students": all_students, "total": len(all_students)}), 200
+stores = [
+    {"id": 1, "name": "Tech Store"},
+    {"id": 2, "name": "Furniture Store"},
+]
 
+items = []
 
-@app.get('/students/<int:student_id>')
-def get_student(student_id):
-    student = students.get(student_id)
-    if not student:
-        return jsonify({"error": "Student not found"}), 404
-    return jsonify(student), 200
+next_item_id = 1
 
 
-@app.post('/students')
-def create_student():
-    global next_id
-    data = request.get_json()
-    if not data or not data.get("name"):
-        return jsonify({"error": "Name is required"}), 400
+# ============================================================
+# Helper Functions (use these in your TODOs)
+# ============================================================
 
-    student = {
-        "id": next_id,
-        "name": data["name"],
-        "email": data.get("email", ""),
-        "major": data.get("major", ""),
-    }
-    students[next_id] = student
-    next_id += 1
-    return jsonify(student), 201
+def store_exists(store_id):
+    """Return True if a store with this ID exists."""
+    return any(s["id"] == store_id for s in stores)
 
 
-@app.put('/students/<int:student_id>')
-def update_student(student_id):
-    student = students.get(student_id)
-    if not student:
-        return jsonify({"error": "Student not found"}), 404
-
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
-
-    for key, value in data.items():
-        if key == "id":
-            continue  # cannot change id
-        student[key] = value
-
-    return jsonify(student), 200
-
-
-@app.delete('/students/<int:student_id>')
-def delete_student(student_id):
-    student = students.pop(student_id, None)
-    if not student:
-        return jsonify({"error": "Student not found"}), 404
-    return jsonify({"message": "Student deleted"}), 200
-
-
-# =============================================================================
-# HELPER: Call OpenAI API
-# =============================================================================
-# This function calls OpenAI's Chat Completions API.
-# It sends a prompt asking for a short piece of advice based on the student's major.
-#
-# Parameters:
-#   major (str) — the student's major, e.g. "Data Science"
-#
-# Returns:
-#   str — a short advice string (cleaned up, no quotes/emoji/newlines)
-#
-# Raises:
-#   Exception — if the API call fails for any reason
-#         (bad key, timeout, rate limit, network error, etc.)
-
-def _generate_advice_from_openai(major):
-    response = client.chat.completions.create(
-        # Please do not change the model name, as we have a shared key with limited quota. 
-        # If you want to experiment with other models, please get your own API key and set it in your .env file.
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are a concise academic advisor. "
-                    "Give exactly one piece of advice in about 15 words. "
-                    "No emoji, no quotation marks, no line breaks."
-                ),
-            },
-            {
-                "role": "user",
-                "content": f"Give one short advice for a student majoring in {major}.",
-            },
-        ],
-        temperature=0.7,
-        max_tokens=50,
+def duplicate_name_in_store(name, store_id):
+    """Return True if an item with this name already exists in the store.
+    Comparison is case-insensitive.
+    """
+    return any(
+        i["store_id"] == store_id and i["name"].lower() == name.lower()
+        for i in items
     )
 
-    advice = response.choices[0].message.content
 
-    # Clean up: remove surrounding quotes, extra whitespace, newlines
-    advice = advice.strip().strip('"').strip("'").replace("\n", " ")
+# ============================================================
+# Item Routes
+# ============================================================
 
-    return advice
-
-
-# =============================================================================
-# TODO: IMPLEMENT THESE TWO ENDPOINTS
-# =============================================================================
-
-# --- Endpoint A: POST /students/<id>/advice ---
-#
-# 1. Look up the student by ID.
-#    → If not found, return 404: {"error": "Student not found"}
-#
-# 2. Check that the student has a non-empty "major".
-#    → If missing or empty, return 400: {"error": "Student major is required to generate advice"}
-#
-# 3. Call _generate_advice_from_openai(major) to get advice.
-#    → If it raises an exception, log the error with app.logger.error(...)
-#      and return 502: {"error": "Upstream AI service failed"}
-#
-# 4. Save the advice into the student dict
-#
-# 5. Return 200 with: {"id": ..., "major": "...", "advice": "..."}
-
-@app.post('/students/<int:student_id>/advice')
-def generate_advice(student_id):
-    pass  # TODO: Replace with your implementation
+items_blp = Blueprint("items", __name__, description="Operations on items")
 
 
-# --- Endpoint B: GET /students/<id>/advice ---
-#
-# 1. Look up the student by ID.
-#    → If not found, return 404: {"error": "Student not found"}
-#
-# 2. Check if the student has a non-empty "advice" field.
-#    → If not, return 404: {"error": "Advice not found for this student"}
-#
-# 3. Return 200 with: {"id": ..., "advice": "..."}
+@items_blp.route("/items")
+class ItemList(MethodView):
 
-@app.get('/students/<int:student_id>/advice')
-def get_advice(student_id):
-    pass  # TODO: Replace with your implementation
+    @items_blp.response(200, ItemSchema(many=True))
+    def get(self):
+        """List all items."""
+        return items
+
+    @items_blp.arguments(ItemCreateSchema)
+    @items_blp.response(201, ItemSchema)
+    def post(self, item_data):
+        """Create a new item.
+
+        When this code runs, Marshmallow has already validated:
+          - name exists and is 1-100 chars
+          - price exists and is >= 0
+          - store_id exists and is an integer
+
+        If you completed TODO 2 and 3 in schemas.py:
+          - name has been trimmed and blank names rejected
+          - discount_price has been checked against price
+
+        YOUR JOB HERE: Add route-level validation that depends
+        on the current application state.
+        """
+        global next_item_id
+
+        # --------------------------------------------------
+        # TODO 1: Business Validation — Store must exist
+        #
+        #   Check if item_data["store_id"] refers to a real
+        #   store. If not, reject the request.
+        #
+        #   Use: store_exists() helper function
+        #   Use: abort(404, message="Store not found.")
+        #
+        #   Test: {"name": "Ghost", "price": 5, "store_id": 999}
+        #         should return 404
+        # --------------------------------------------------
+
+        # --------------------------------------------------
+        # TODO 4: Data Integrity — No duplicate names per store
+        #
+        #   Two items in the SAME store cannot have the same
+        #   name (case-insensitive). Same name in a DIFFERENT
+        #   store is fine.
+        #
+        #   Use: duplicate_name_in_store() helper function
+        #   Use: abort(409, message="An item with this name already exists in this store.")
+        #
+        #   Test: Create "Laptop" in store 1, then try to
+        #         create "Laptop" in store 1 again → 409
+        #   Test: Create "Laptop" in store 1, then
+        #         create "Laptop" in store 2 → 201 (OK)
+        # --------------------------------------------------
+
+        new_item = {
+            "id": next_item_id,
+            "name": item_data["name"],
+            "price": item_data["price"],
+            "discount_price": item_data.get("discount_price"),
+            "store_id": item_data["store_id"],
+        }
+        items.append(new_item)
+        next_item_id += 1
+
+        return new_item
 
 
-# =============================================================================
-# RUN
-# =============================================================================
+# ============================================================
+# Store Routes
+# ============================================================
 
-if __name__ == '__main__':
+stores_blp = Blueprint("stores", __name__, description="Operations on stores")
+
+
+@stores_blp.route("/stores")
+class StoreList(MethodView):
+
+    @stores_blp.response(200, StoreSchema(many=True))
+    def get(self):
+        """List all stores."""
+        return stores
+
+
+# ============================================================
+# Register Blueprints
+# ============================================================
+
+api.register_blueprint(items_blp)
+api.register_blueprint(stores_blp)
+
+if __name__ == "__main__":
     app.run(debug=True)
