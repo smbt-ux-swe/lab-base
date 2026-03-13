@@ -1,4 +1,4 @@
-# Week 7 Lab: Todo API
+# Lab 4
 
 ## Overview
 
@@ -211,8 +211,6 @@ All 8 category tests should PASS.
 | File | What to Do |
 |---|---|
 | `app.py` | Implement TODO 1–5 |
-| `tests/test_todo.py` | Read to understand expected behavior (do not modify) |
-| `tests/conftest.py` | Test setup (do not modify) |
 
 ---
 
@@ -222,5 +220,3 @@ All 8 category tests should PASS.
 2. Run `pytest tests/ -v` and verify all 25 tests pass
 3. Push to your GitHub Classroom repository
 4. Submit the repo link on bCourses
-
-**Grading**: Pass/No Pass based on engagement. We're looking for evidence you completed the SQLAlchemy conversion and category relationship.
