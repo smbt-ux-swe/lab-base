@@ -1,19 +1,16 @@
-# Lab 3: Validation
+# Week 7 Lab: Todo API
 
 ## Overview
 
-In the previous class activity, you implemented basic schema validation: required fields, type checking, and numeric ranges.
+In the in-class exploration, you converted a Book API from in-memory storage to SQLAlchemy with step-by-step guidance. In this lab you will do the same conversion yourself with a **Todo API**, then go one step further: connect Todos to **Categories** using a foreign key relationship.
 
-Real APIs need more than that. In this lab you will implement four validation rules that go beyond basic schema checks:
-
-| Validation Type | What It Checks | Where to Implement |
+| Task | What You Do | What You Learn |
 |---|---|---|
-| **Business rule** | Does the referenced store actually exist? | `app.py` (route handler) |
-| **Cross-field** | Is discount_price ≤ price? | `schemas.py` (schema hook) |
-| **Input sanitization** | Trim whitespace, reject blank names | `schemas.py` (schema hook) |
-| **Data integrity** | No duplicate item names in the same store | `app.py` (route handler) |
-
-Notice that some validation belongs in the **schema** (data shape, field relationships) and some belongs in the **route handler** (application state, data already in memory). This separation matters in real codebases.
+| **TODO 1** | Configure Flask-SQLAlchemy | Database setup |
+| **TODO 2** | Create TodoModel | Defining models |
+| **TODO 3** | Update routes to use SQLAlchemy | CRUD with ORM |
+| **TODO 4** | Add `db.create_all()` | Database initialization |
+| **TODO 5** | Add foreign key to CategoryModel | Relationships between tables |
 
 ---
 
@@ -21,7 +18,7 @@ Notice that some validation belongs in the **schema** (data shape, field relatio
 
 ```bash
 python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
@@ -37,113 +34,175 @@ pytest tests/ -v
 
 Before you implement anything, you should see:
 
-- `TestBasicValidation` → all PASS (provided for you)
-- `TestStoreExists` → FAIL
-- `TestDiscountPrice` → FAIL
-- `TestNameTrimming` → FAIL
-- `TestDuplicateNames` → FAIL
+- `TestInMemoryAPI` → all PASS (starter API works)
+- `TestSQLAlchemySetup` → FAIL
+- `TestPersistentCRUD` → mostly PASS (in-memory version handles these), except `test_database_starts_empty` → FAIL
+- `TestCategoryRelationship` → FAIL
 
-After you complete all TODOs, all tests should PASS.
+After you complete all TODOs, all **25 tests** should PASS.
 
 ---
 
-## Swagger UI
+## Pre-Populated Data (In-Memory)
 
-If you want to test manually in addition to pytest:
+The starter code has 3 hardcoded todos:
+
+| ID | Title | Status | Priority |
+|---|---|---|---|
+| 1 | Buy groceries | pending | medium |
+| 2 | Finish homework | in_progress | high |
+| 3 | Call dentist | done | low |
+
+After your conversion, the database starts empty — data comes from POST requests.
+
+---
+
+## Part 1: SQLAlchemy Conversion
+
+This is the same process you did in class with the Book API.
+
+### TODO 1 — Configure Flask-SQLAlchemy (app.py)
+
+At the top of `app.py`:
+
+1. Import SQLAlchemy: `from flask_sqlalchemy import SQLAlchemy`
+2. Add configuration:
+
+| Config Key | Value |
+|---|---|
+| `SQLALCHEMY_DATABASE_URI` | `'sqlite:///todos.db'` |
+| `SQLALCHEMY_TRACK_MODIFICATIONS` | `False` |
+
+3. Create the db instance: `db = SQLAlchemy(app)`
+
+---
+
+### TODO 2 — Create the TodoModel (app.py)
+
+Replace the `todos = [...]` list and `next_id` with a SQLAlchemy model.
+
+**TodoModel:**
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | Integer | primary_key |
+| title | String(200) | nullable=False |
+| description | String(500) | |
+| status | String(20) | default="pending" |
+| priority | String(20) | default="medium" |
+
+Your model needs:
+- `__tablename__ = "todos"`
+- A `to_dict()` method returning a dictionary of all fields
+
+After TODO 1-2, run:
 
 ```bash
+pytest tests/test_todo.py::TestSQLAlchemySetup -v
+```
+
+All 6 setup tests should PASS.
+
+---
+
+### TODO 3 — Update Routes (app.py)
+
+Update each route to use SQLAlchemy. Use your Book API code from class as reference.
+
+| Operation | SQLAlchemy Code |
+|-----------|----------------|
+| Get all | `TodoModel.query.all()` |
+| Get by ID (or 404) | `db.get_or_404(TodoModel, id)` |
+| Create | `db.session.add(obj)` then `db.session.commit()` |
+| Update | Modify attributes, then `db.session.commit()` |
+| Delete | `db.session.delete(obj)` then `db.session.commit()` |
+| Filter | `TodoModel.query.filter_by(field=value)` |
+
+---
+
+### TODO 4 — Initialize the Database (app.py)
+
+At the bottom of the file:
+
+```python
+with app.app_context():
+    db.create_all()
+
+if __name__ == '__main__':
+    app.run(debug=True)
+```
+
+After TODO 1-4, run:
+
+```bash
+pytest tests/test_todo.py::TestPersistentCRUD -v
+```
+
+All 7 CRUD tests should PASS.
+
+---
+
+## Part 2: Category Relationship
+
+Now connect Todos to Categories using a foreign key. A `CategoryModel` is already provided in `app.py` (commented out) — you just need to uncomment it and wire things up.
+
+**How the two tables relate:**
+
+```
+categories          todos
+──────────          ──────────────────────
+id  ◄───────────── category_id (FK)
+name                title
+                    status
+                    priority
+```
+
+A Todo can belong to one Category. A Category can have many Todos.
+
+### TODO 5 — Add Foreign Key + Relationship (app.py)
+
+**Step 1:** Uncomment the `CategoryModel` class and the 3 category routes (`/api/categories`).
+
+**Step 2:** Add a foreign key column to `TodoModel`:
+
+```python
+category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=True)
+```
+
+**Step 3:** Update `TodoModel.to_dict()` to include `category_id`:
+
+```python
+"category_id": self.category_id,
+```
+
+**Step 4:** Update `create_todo` to accept `category_id`:
+
+```python
+category_id=data.get('category_id'),
+```
+
+**Step 5:** Update `get_todos` to support filtering by category:
+
+```python
+category_id = request.args.get('category_id')
+if category_id:
+    query = query.filter_by(category_id=int(category_id))
+```
+
+**Step 6:** Delete `instance/todos.db` and restart (the schema changed):
+
+```bash
+rm instance/todos.db
 python app.py
 ```
 
-Then open http://127.0.0.1:5000/swagger-ui
+After TODO 5, run:
 
----
-
-## Pre-Populated Data
-
-The API starts with two stores (no items):
-
-| Store ID | Name |
-|---|---|
-| 1 | Tech Store |
-| 2 | Furniture Store |
-
----
-
-## Your Tasks
-
-### TODO 1 — Business Validation (app.py)
-
-**store_id must refer to an existing store.**
-
-This can't be done in the schema because the schema doesn't know what stores exist. It must be checked in the route handler.
-
-```
-POST /items
-{"name": "Ghost Item", "price": 5.00, "store_id": 999}
-→ 404: "Store not found."
+```bash
+pytest tests/test_todo.py::TestCategoryRelationship -v
 ```
 
-Hint: use the `store_exists()` helper and `abort()`.
-
----
-
-### TODO 2 — Cross-Field Validation (schemas.py)
-
-**If discount_price is provided, it must be ≤ price.**
-
-This belongs in the schema because it's a relationship between two fields in the same request. Use `@validates_schema` — it gives you access to all fields at once.
-
-```
-POST /items
-{"name": "Bad Deal", "price": 50, "discount_price": 100, "store_id": 1}
-→ 422: "Discount price cannot exceed regular price."
-```
-
-Note: if discount_price is `null` or not provided, skip this check.
-
----
-
-### TODO 3 — Input Sanitization (schemas.py)
-
-**Strip whitespace from name, reject blank names after stripping.**
-
-This belongs in the schema because it's about cleaning up input data before it reaches your route handler. Use `@pre_load` to trim, and `@validates("name")` to reject blanks.
-
-```
-POST /items
-{"name": "   ", "price": 5, "store_id": 1}
-→ 422: "Name cannot be blank."
-
-POST /items
-{"name": "  Keyboard  ", "price": 75, "store_id": 1}
-→ 201: name is saved as "Keyboard" (trimmed)
-```
-
-Important: both `@pre_load` and `@validates` methods need `**kwargs` in their signature.
-
----
-
-### TODO 4 — Data Integrity (app.py)
-
-**No duplicate item names within the same store (case-insensitive).**
-
-This can't be done in the schema because the schema doesn't know what items already exist. It must be checked in the route handler.
-
-The same name in a *different* store is fine.
-
-```
-# First request succeeds
-POST /items  {"name": "Laptop", "price": 1000, "store_id": 1}  → 201
-
-# Same name, same store → rejected
-POST /items  {"name": "Laptop", "price": 800, "store_id": 1}  → 409
-
-# Same name, different store → accepted
-POST /items  {"name": "Laptop", "price": 1200, "store_id": 2}  → 201
-```
-
-Hint: use the `duplicate_name_in_store()` helper and `abort()`.
+All 8 category tests should PASS.
 
 ---
 
@@ -151,15 +210,17 @@ Hint: use the `duplicate_name_in_store()` helper and `abort()`.
 
 | File | What to Do |
 |---|---|
-| `schemas.py` | Implement TODO 2 and TODO 3 |
-| `app.py` | Implement TODO 1 and TODO 4 |
-| `tests/test_validation.py` | Read to understand expected behavior (do not modify) |
+| `app.py` | Implement TODO 1–5 |
+| `tests/test_todo.py` | Read to understand expected behavior (do not modify) |
 | `tests/conftest.py` | Test setup (do not modify) |
+
 ---
 
 ## Submission
 
-1. Complete all four TODOs
-2. Run `pytest tests/ -v` and verify all tests pass
+1. Complete all TODOs
+2. Run `pytest tests/ -v` and verify all 25 tests pass
 3. Push to your GitHub Classroom repository
 4. Submit the repo link on bCourses
+
+**Grading**: Pass/No Pass based on engagement. We're looking for evidence you completed the SQLAlchemy conversion and category relationship.

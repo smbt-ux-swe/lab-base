@@ -1,171 +1,158 @@
 """
-app.py — Flask REST API for Stores and Items
-
-ALREADY PROVIDED:
-  - App setup, blueprints, in-memory storage
-  - GET and POST routes that work
-  - Helper functions for validation
-
-YOUR TASKS (TODO 1 and TODO 4):
-  Look for TODO comments in the post() method below.
-  These validations belong in the route handler because
-  they depend on application state (the data in memory),
-  not just the shape of the request.
-
-WHY SOME VALIDATION IS HERE vs IN SCHEMAS:
-  - schemas.py handles data shape: types, ranges, field relationships
-  - app.py handles application logic: "does this store exist?", "is this name taken?"
-  This is how real APIs separate concerns.
+Week 7 Lab: Todo API
+Complete TODO 1-5 in order.
 """
 
-from flask import Flask
-from flask_smorest import Api, Blueprint, abort
-from flask.views import MethodView
-from schemas import ItemSchema, ItemCreateSchema, StoreSchema
+from flask import Flask, request, jsonify
+
+# TODO 1: Import SQLAlchemy
+# from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 
-app.config["API_TITLE"] = "Advanced Validation API"
-app.config["API_VERSION"] = "v1"
-app.config["OPENAPI_VERSION"] = "3.0.3"
-app.config["OPENAPI_URL_PREFIX"] = "/"
-app.config["OPENAPI_SWAGGER_UI_PATH"] = "/swagger-ui"
-app.config["OPENAPI_SWAGGER_UI_URL"] = "https://cdn.jsdelivr.net/npm/swagger-ui-dist/"
-
-api = Api(app)
+# TODO 1: Add configuration and create db instance
+# app.config['SQLALCHEMY_DATABASE_URI'] = '...'
+# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# db = SQLAlchemy(app)
 
 
-# ============================================================
-# In-Memory Storage
-# ============================================================
+# ── TODO 2: Create TodoModel ──────────────────────────────────────────────────
+# Replace the in-memory list below with a SQLAlchemy model.
+# Hint: refer to your Book API code from class.
 
-stores = [
-    {"id": 1, "name": "Tech Store"},
-    {"id": 2, "name": "Furniture Store"},
+todos = [
+    {"id": 1, "title": "Buy groceries",  "description": "", "status": "pending",     "priority": "medium"},
+    {"id": 2, "title": "Finish homework", "description": "", "status": "in_progress", "priority": "high"},
+    {"id": 3, "title": "Call dentist",    "description": "", "status": "done",        "priority": "low"},
 ]
+next_id = 4
 
-items = []
-
-next_item_id = 1
-
-
-# ============================================================
-# Helper Functions (use these in your TODOs)
-# ============================================================
-
-def store_exists(store_id):
-    """Return True if a store with this ID exists."""
-    return any(s["id"] == store_id for s in stores)
+# class TodoModel(db.Model):
+#     __tablename__ = "todos"
+#     ...
+#     def to_dict(self):
+#         ...
 
 
-def duplicate_name_in_store(name, store_id):
-    """Return True if an item with this name already exists in the store.
-    Comparison is case-insensitive.
-    """
-    return any(
-        i["store_id"] == store_id and i["name"].lower() == name.lower()
-        for i in items
-    )
+# ── TODO 5: CategoryModel (leave commented out until TODO 5) ─────────────────
+# class CategoryModel(db.Model):
+#     __tablename__ = "categories"
+#     id    = db.Column(db.Integer, primary_key=True)
+#     name  = db.Column(db.String(100), nullable=False)
+#     todos = db.relationship('TodoModel', backref='category', lazy=True)
+#
+#     def to_dict(self):
+#         return {
+#             "id":         self.id,
+#             "name":       self.name,
+#             "todo_count": len(self.todos),
+#         }
 
 
-# ============================================================
-# Item Routes
-# ============================================================
+# ── Routes ────────────────────────────────────────────────────────────────────
 
-items_blp = Blueprint("items", __name__, description="Operations on items")
+@app.route('/api/todos', methods=['GET'])
+def get_todos():
+    # TODO 3: Replace with TodoModel.query
+    query = todos
 
+    status = request.args.get('status')
+    if status:
+        query = [t for t in query if t['status'] == status]
 
-@items_blp.route("/items")
-class ItemList(MethodView):
+    priority = request.args.get('priority')
+    if priority:
+        query = [t for t in query if t['priority'] == priority]
 
-    @items_blp.response(200, ItemSchema(many=True))
-    def get(self):
-        """List all items."""
-        return items
+    # TODO 5: Add category_id filter
+    # category_id = request.args.get('category_id')
+    # if category_id:
+    #     query = query.filter_by(category_id=int(category_id))
 
-    @items_blp.arguments(ItemCreateSchema)
-    @items_blp.response(201, ItemSchema)
-    def post(self, item_data):
-        """Create a new item.
-
-        When this code runs, Marshmallow has already validated:
-          - name exists and is 1-100 chars
-          - price exists and is >= 0
-          - store_id exists and is an integer
-
-        If you completed TODO 2 and 3 in schemas.py:
-          - name has been trimmed and blank names rejected
-          - discount_price has been checked against price
-
-        YOUR JOB HERE: Add route-level validation that depends
-        on the current application state.
-        """
-        global next_item_id
-
-        # --------------------------------------------------
-        # TODO 1: Business Validation — Store must exist
-        #
-        #   Check if item_data["store_id"] refers to a real
-        #   store. If not, reject the request.
-        #
-        #   Use: store_exists() helper function
-        #   Use: abort(404, message="Store not found.")
-        #
-        #   Test: {"name": "Ghost", "price": 5, "store_id": 999}
-        #         should return 404
-        # --------------------------------------------------
-
-        # --------------------------------------------------
-        # TODO 4: Data Integrity — No duplicate names per store
-        #
-        #   Two items in the SAME store cannot have the same
-        #   name (case-insensitive). Same name in a DIFFERENT
-        #   store is fine.
-        #
-        #   Use: duplicate_name_in_store() helper function
-        #   Use: abort(409, message="An item with this name already exists in this store.")
-        #
-        #   Test: Create "Laptop" in store 1, then try to
-        #         create "Laptop" in store 1 again → 409
-        #   Test: Create "Laptop" in store 1, then
-        #         create "Laptop" in store 2 → 201 (OK)
-        # --------------------------------------------------
-
-        new_item = {
-            "id": next_item_id,
-            "name": item_data["name"],
-            "price": item_data["price"],
-            "discount_price": item_data.get("discount_price"),
-            "store_id": item_data["store_id"],
-        }
-        items.append(new_item)
-        next_item_id += 1
-
-        return new_item
+    return jsonify(query)
 
 
-# ============================================================
-# Store Routes
-# ============================================================
-
-stores_blp = Blueprint("stores", __name__, description="Operations on stores")
-
-
-@stores_blp.route("/stores")
-class StoreList(MethodView):
-
-    @stores_blp.response(200, StoreSchema(many=True))
-    def get(self):
-        """List all stores."""
-        return stores
+@app.route('/api/todos/<int:todo_id>', methods=['GET'])
+def get_todo(todo_id):
+    # TODO 3: Replace with db.get_or_404(TodoModel, todo_id)
+    todo = next((t for t in todos if t['id'] == todo_id), None)
+    if not todo:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(todo)
 
 
-# ============================================================
-# Register Blueprints
-# ============================================================
+@app.route('/api/todos', methods=['POST'])
+def create_todo():
+    global next_id
+    data = request.get_json()
+    if not data or 'title' not in data:
+        return jsonify({"error": "Title is required"}), 400
 
-api.register_blueprint(items_blp)
-api.register_blueprint(stores_blp)
+    # TODO 3: Replace with TodoModel object + db.session.add/commit
+    # TODO 5: Add category_id=data.get('category_id')
+    todo = {
+        "id":          next_id,
+        "title":       data['title'],
+        "description": data.get('description', ''),
+        "status":      data.get('status', 'pending'),
+        "priority":    data.get('priority', 'medium'),
+    }
+    todos.append(todo)
+    next_id += 1
+    return jsonify(todo), 201
 
-if __name__ == "__main__":
+
+@app.route('/api/todos/<int:todo_id>', methods=['PUT'])
+def update_todo(todo_id):
+    # TODO 3: Replace with SQLAlchemy pattern
+    todo = next((t for t in todos if t['id'] == todo_id), None)
+    if not todo:
+        return jsonify({"error": "Not found"}), 404
+
+    data = request.get_json()
+    for field in ['title', 'description', 'status', 'priority']:
+        if field in data:
+            todo[field] = data[field]
+
+    return jsonify(todo)
+
+
+@app.route('/api/todos/<int:todo_id>', methods=['DELETE'])
+def delete_todo(todo_id):
+    # TODO 3: Replace with SQLAlchemy pattern
+    global todos
+    todo = next((t for t in todos if t['id'] == todo_id), None)
+    if not todo:
+        return jsonify({"error": "Not found"}), 404
+
+    todos = [t for t in todos if t['id'] != todo_id]
+    return jsonify({"message": "Todo deleted"})
+
+
+# ── TODO 5: Category Routes (leave commented out until TODO 5) ───────────────
+# @app.route('/api/categories', methods=['GET'])
+# def get_categories():
+#     return jsonify([c.to_dict() for c in CategoryModel.query.all()])
+#
+# @app.route('/api/categories/<int:cat_id>', methods=['GET'])
+# def get_category(cat_id):
+#     cat = db.get_or_404(CategoryModel, cat_id)
+#     return jsonify(cat.to_dict())
+#
+# @app.route('/api/categories', methods=['POST'])
+# def create_category():
+#     data = request.get_json()
+#     if not data or 'name' not in data:
+#         return jsonify({"error": "Name is required"}), 400
+#     cat = CategoryModel(name=data['name'])
+#     db.session.add(cat)
+#     db.session.commit()
+#     return jsonify(cat.to_dict()), 201
+
+
+# TODO 4: Add this block
+# with app.app_context():
+#     db.create_all()
+
+if __name__ == '__main__':
     app.run(debug=True)

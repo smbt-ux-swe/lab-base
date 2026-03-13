@@ -1,17 +1,27 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+"""Test configuration — do not modify."""
+
 import pytest
-from app import app, items, stores
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from app import app
 
 
-@pytest.fixture()
+@pytest.fixture
 def client():
-    """Create a test client. Resets item data before each test."""
-    app.config["TESTING"] = True
+    """Create a test client with a fresh database."""
+    app.config['TESTING'] = True
 
-    # Reset items before each test (stores stay the same)
-    items.clear()
-
-    with app.test_client() as client:
-        yield client
+    try:
+        from app import db
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        with app.app_context():
+            db.create_all()
+            with app.test_client() as client:
+                yield client
+            db.drop_all()
+    except ImportError:
+        with app.test_client() as client:
+            yield client
