@@ -1,222 +1,186 @@
-# Lab 4
+# Extra Credit Exam: 5-Stage Data Pipeline
 
-## Overview
-
-In the in-class exploration, you converted a Book API from in-memory storage to SQLAlchemy with step-by-step guidance. In this lab you will do the same conversion yourself with a **Todo API**, then go one step further: connect Todos to **Categories** using a foreign key relationship.
-
-| Task | What You Do | What You Learn |
-|---|---|---|
-| **TODO 1** | Configure Flask-SQLAlchemy | Database setup |
-| **TODO 2** | Create TodoModel | Defining models |
-| **TODO 3** | Update routes to use SQLAlchemy | CRUD with ORM |
-| **TODO 4** | Add `db.create_all()` | Database initialization |
-| **TODO 5** | Add foreign key to CategoryModel | Relationships between tables |
+**Duration:** 50 minutes, in-class
+**AI tools:** Allowed
+**Grading:** All-or-nothing — pass = 10 bonus points applicable to any single assignment, fail = 0
 
 ---
 
-## Setup
+## What you're building
 
-```bash
-python3 -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+A backend that ingests text and runs it through a **5-stage pipeline**, where each stage runs sequentially as a background job, reads its input from the previous stage's output file, and updates job status in Postgres along the way. A status endpoint reports progress.
+
+You will deliver one repo with a working `docker-compose up --build` that satisfies every requirement below. The grader is automated and strict — every check must pass or the entire submission fails.
+
+---
+
+## What the starter gives you
+
+The starter is **deliberately minimal**. Already done:
+- `docker-compose.yml` declares 4 services (`api`, `worker`, `db`, `redis`) and a **named volume `pipeline_data` mounted in both `api` and `worker` at `/data`**. You read and write stage output files here; both containers see the same files.
+- `Dockerfile`, `requirements.txt`, empty Flask app (`app.py`), empty worker entrypoint (`worker.py`), empty models file (`models.py`)
+- That's it. Every endpoint, model, stage, and config wiring is yours.
+
+---
+
+## Required endpoints
+
+### `POST /jobs`
+
+Accepts a JSON payload `{"text": "..."}` and starts a new pipeline job.
+
+**Response:** `202 Accepted`
+```json
+{ "job_id": "<uuid-or-int>" }
 ```
 
----
+The job runs asynchronously through the 5 stages. The endpoint must return promptly (< 1 second); do not run stages inline.
 
-## Running Tests
+### `GET /jobs/<id>`
 
-You do **not** need the server running to run tests.
+Returns the current state of a job.
 
-```bash
-pytest tests/ -v
+**Response (success):** `200 OK`
+```json
+{
+    "job_id": "<id>",
+    "status": "running",          // pending | running | completed | failed
+    "current_stage": 3,            // 1..5; the stage currently running or the last completed stage
+    "failed_stage": null,          // null unless status == "failed"
+    "error": null                  // null unless status == "failed"
+}
 ```
 
-Before you implement anything, you should see:
+**Response (not found):** `404 Not Found`
 
-- `TestInMemoryAPI` → all PASS (starter API works)
-- `TestSQLAlchemySetup` → FAIL
-- `TestPersistentCRUD` → mostly PASS (in-memory version handles these), except `test_database_starts_empty` → FAIL
-- `TestCategoryRelationship` → FAIL
+### `GET /health`
 
-After you complete all TODOs, all **25 tests** should PASS.
+Returns liveness + dependency status.
 
----
-
-## Pre-Populated Data (In-Memory)
-
-The starter code has 3 hardcoded todos:
-
-| ID | Title | Status | Priority |
-|---|---|---|---|
-| 1 | Buy groceries | pending | medium |
-| 2 | Finish homework | in_progress | high |
-| 3 | Call dentist | done | low |
-
-After your conversion, the database starts empty — data comes from POST requests.
-
----
-
-## Part 1: SQLAlchemy Conversion
-
-This is the same process you did in class with the Book API.
-
-### TODO 1 — Configure Flask-SQLAlchemy (app.py)
-
-At the top of `app.py`:
-
-1. Import SQLAlchemy: `from flask_sqlalchemy import SQLAlchemy`
-2. Add configuration:
-
-| Config Key | Value |
-|---|---|
-| `SQLALCHEMY_DATABASE_URI` | `'sqlite:///todos.db'` |
-| `SQLALCHEMY_TRACK_MODIFICATIONS` | `False` |
-
-3. Create the db instance: `db = SQLAlchemy(app)`
-
----
-
-### TODO 2 — Create the TodoModel (app.py)
-
-Replace the `todos = [...]` list and `next_id` with a SQLAlchemy model.
-
-**TodoModel:**
-
-| Column | Type | Constraints |
-|---|---|---|
-| id | Integer | primary_key |
-| title | String(200) | nullable=False |
-| description | String(500) | |
-| status | String(20) | default="pending" |
-| priority | String(20) | default="medium" |
-
-Your model needs:
-- `__tablename__ = "todos"`
-- A `to_dict()` method returning a dictionary of all fields
-
-After TODO 1-2, run:
-
-```bash
-pytest tests/test_todo.py::TestSQLAlchemySetup -v
+**Response:** `200 OK`
+```json
+{
+    "status": "ok",
+    "db": "up",
+    "redis": "up",
+    "volume_writable": true
+}
 ```
 
-All 6 setup tests should PASS.
+`db` and `redis` must reflect actual connectivity (try a `SELECT 1` and a `redis.ping()`). `volume_writable` must reflect whether `/data` is writable from this process.
 
 ---
 
-### TODO 3 — Update Routes (app.py)
+## The 5 stages
 
-Update each route to use SQLAlchemy. Use your Book API code from class as reference.
+Stage `i` reads from `/data/<job_id>/stage{i-1}.<ext>` (except stage 1, which reads from the POST payload) and writes to `/data/<job_id>/stage{i}.<ext>`. **Each stage runs as a separate background job, sequentially — stage `i+1` must not start until stage `i` is fully done.**
 
-| Operation | SQLAlchemy Code |
-|-----------|----------------|
-| Get all | `TodoModel.query.all()` |
-| Get by ID (or 404) | `db.get_or_404(TodoModel, id)` |
-| Create | `db.session.add(obj)` then `db.session.commit()` |
-| Update | Modify attributes, then `db.session.commit()` |
-| Delete | `db.session.delete(obj)` then `db.session.commit()` |
-| Filter | `TodoModel.query.filter_by(field=value)` |
+| Stage | Input | Output file | What it does |
+|-------|-------|-------------|--------------|
+| 1 | `text` from POST body | `/data/<id>/stage1.txt` | Write raw text to disk |
+| 2 | `stage1.txt` | `/data/<id>/stage2.txt` | Lowercase the entire text |
+| 3 | `stage2.txt` | `/data/<id>/stage3.json` | Tokenize: split on whitespace + punctuation; write JSON list of word tokens |
+| 4 | `stage3.json` | `/data/<id>/stage4.json` | Remove stopwords (use the list in `STOPWORDS` below); write JSON list |
+| 5 | `stage4.json` | `/data/<id>/stage5.json` | Compute frequencies; write JSON object `{word: count}`. Also save the **top 5 most frequent words** to the database in a `top_words` table. |
 
----
+The grader will verify all 5 files exist with correct content **and** the database has the top-5 words for each completed job.
 
-### TODO 4 — Initialize the Database (app.py)
-
-At the bottom of the file:
+### `STOPWORDS` (use exactly this list)
 
 ```python
-with app.app_context():
-    db.create_all()
-
-if __name__ == '__main__':
-    app.run(debug=True)
+STOPWORDS = {"the", "a", "an", "and", "or", "but", "if", "then", "of",
+             "in", "on", "at", "to", "for", "with", "by", "is", "are",
+             "was", "were", "be", "been", "being", "this", "that"}
 ```
 
-After TODO 1-4, run:
+### Required database schema (minimum)
 
-```bash
-pytest tests/test_todo.py::TestPersistentCRUD -v
+```
+jobs:
+  id            primary key (uuid string or int)
+  status        text  ('pending' | 'running' | 'completed' | 'failed')
+  current_stage int   (1..5)
+  failed_stage  int   nullable
+  error         text  nullable
+  created_at    timestamp
+  updated_at    timestamp
+
+top_words:
+  job_id  fk -> jobs.id
+  word    text
+  count   int
 ```
 
-All 7 CRUD tests should PASS.
+You may add columns; do not remove the ones above.
 
 ---
 
-## Part 2: Category Relationship
+## The four hard parts (read this section twice)
 
-Now connect Todos to Categories using a foreign key. A `CategoryModel` is already provided in `app.py` (commented out) — you just need to uncomment it and wire things up.
+These are the points where the grader will catch shortcuts. The spec calls them out so you don't waste time discovering them — but you still have to implement them correctly.
 
-**How the two tables relate:**
+### 1. Concurrent jobs
 
-```
-categories          todos
-──────────          ──────────────────────
-id  ◄───────────── category_id (FK)
-name                title
-                    status
-                    priority
-```
+The grader will fire **3 `POST /jobs` requests within 2 seconds** with different payloads. All three must run their own pipelines without cross-contaminating files (each must use its own `/data/<job_id>/` directory) or DB rows. Each must complete with its own correct top-5.
 
-A Todo can belong to one Category. A Category can have many Todos.
+### 2. Strict failure semantics
 
-### TODO 5 — Add Foreign Key + Relationship (app.py)
+If any stage raises an exception (for instance, stage 5 receiving an empty list because every word was a stopword), the worker **must catch it and update the job to**:
+- `status = "failed"`
+- `failed_stage = <the stage number that raised>`
+- `error = "<the exception message>"`
 
-**Step 1:** Uncomment the `CategoryModel` class and the 3 category routes (`/api/categories`).
+The worker process must NOT crash. It must continue accepting new jobs after a failure. The grader will submit a payload of all stopwords (`"the and a or but"`) and expect a failed-job response — not a 500, not a hung "running" forever.
 
-**Step 2:** Add a foreign key column to `TodoModel`:
+### 3. Health and readiness gating
 
-```python
-category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=True)
-```
+Two pieces:
+- `GET /health` must return the JSON shape above with **real** dependency checks (actually query DB, actually ping Redis, actually try writing to `/data`).
+- `docker-compose.yml` must use `depends_on: condition: service_healthy` on `api` and `worker` so they wait for `db` and `redis` to be healthy before starting. This requires you to **add `healthcheck` blocks** to the `db` and `redis` services. The grader hits `/health` immediately after `docker-compose up` finishes — if your services raced and crashed, you fail.
 
-**Step 3:** Update `TodoModel.to_dict()` to include `category_id`:
+### 4. Sequential stage chaining done correctly
 
-```python
-"category_id": self.category_id,
-```
+Stages must run **one at a time, in order**. Two failure modes the grader will catch:
+- **All-at-once enqueue:** if you push all 5 stages into the queue simultaneously, they will run out of order and stage 2 will read a missing file. Don't do this.
+- **Synchronous chain inside a single job:** if a single rq job runs all 5 stages back-to-back, your status endpoint can never report `current_stage: 3` while stage 3 is running. The grader polls rapidly during execution and asserts that `current_stage` actually advances 1 → 2 → 3 → 4 → 5 over time.
 
-**Step 4:** Update `create_todo` to accept `category_id`:
-
-```python
-category_id=data.get('category_id'),
-```
-
-**Step 5:** Update `get_todos` to support filtering by category:
-
-```python
-category_id = request.args.get('category_id')
-if category_id:
-    query = query.filter_by(category_id=int(category_id))
-```
-
-**Step 6:** Delete `instance/todos.db` and restart (the schema changed):
-
-```bash
-rm instance/todos.db
-python app.py
-```
-
-After TODO 5, run:
-
-```bash
-pytest tests/test_todo.py::TestCategoryRelationship -v
-```
-
-All 8 category tests should PASS.
+The intended pattern is: stage `i` finishes by enqueueing stage `i+1` (or use rq's `depends_on` argument). Either works.
 
 ---
 
-## File Guide
+## What the grader does
 
-| File | What to Do |
-|---|---|
-| `app.py` | Implement TODO 1–5 |
+A single command: `docker-compose up --build`, then HTTP requests. The grader checks:
+
+1. `docker-compose up --build` exits 0 and all containers stay healthy
+2. `GET /health` returns the expected JSON within 5 seconds
+3. Three concurrent `POST /jobs` calls all return 202 with a `job_id` in < 1 second each
+4. Polling each job's `GET /jobs/<id>` shows `current_stage` advancing through 1, 2, 3, 4, 5 (the grader will catch all-at-once parallel enqueue here)
+5. Each job reaches `status: "completed"` with `current_stage: 5` within 30 seconds
+6. For each completed job, all 5 stage files exist on the volume with correct content
+7. Each completed job has top-5 word entries in `top_words`
+8. A 4th job with payload `{"text": "the and a or but"}` reaches `status: "failed"` with `failed_stage` set and a non-null `error`. The worker is still alive after this.
+
+**Any single check fails → 0/10.**
+
+---
+
+## Time budget reality check
+
+This is **hard, even with AI assistance**. Realistic budget for a strong AI-assisted student:
+- Read this spec: 5 min
+- Models + DB init: 5 min
+- API endpoints: 10 min
+- 5 stages + chaining: 15 min
+- Healthchecks + depends_on: 5 min
+- Failure handling: 5 min
+- Verify against the spec, fix edge cases: 5 min
+- **Total: 50 min, with no margin.**
+
+Most students will not finish. That's expected — this is extra credit.
 
 ---
 
 ## Submission
 
-1. Complete all TODOs
-2. Run `pytest tests/ -v` and verify all 25 tests pass
-3. Push to your GitHub Classroom repository
-4. Submit the repo link on bCourses
+Push to your GitHub Classroom repo before the timer ends. The grader runs `docker-compose up --build` from the repo root.
